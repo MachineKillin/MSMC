@@ -160,7 +160,7 @@ def logscreen():
     global hits, bad, twofa, cpm, cpm1, errors, retries, checked
     cmp1 = cpm
     cpm = 0
-    utils.set_title(f"MSMC By KillinMachine#2570 | Checked: {checked}\{len(Combos)}  -  Good: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC By KillinMachine | Checked: {checked}\{len(Combos)}  -  Good: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
     threading.Thread(target=logscreen, args=()).start()    
 
@@ -176,7 +176,7 @@ def cuiscreen():
     print(f" [{twofa}] 2FA")
     print(f" [{retries}] Retries")
     print(f" [{errors}] Errors")
-    utils.set_title(f"MSMC By KillinMachine#2570 | Checked: {checked}\{len(Combos)}  -  Good: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC By KillinMachine | Checked: {checked}\{len(Combos)}  -  Good: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
     threading.Thread(target=cuiscreen, args=()).start()
 
@@ -211,7 +211,7 @@ def Checker(email, password, proxylist):
 
 def Main():
     global proxytype, screen
-    utils.set_title("MSMC By KillinMachine#2570")
+    utils.set_title("MSMC By KillinMachine")
     os.system('cls')
     print(logo)
     try:
