@@ -23,6 +23,7 @@ emails = []
 passwords = []
 day = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
 hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm = 0,0,0,0,0,0,0,0,0
+urllib3.disable_warnings()
 
 def get_urlPost_sFTTag(session):
     r = session.get(sFTTag_url)
