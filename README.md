@@ -10,6 +10,15 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 - optifine cape
 - hypixel rank, level, first/last login
 
+## Installing
+install [python](https://www.python.org/downloads/)
+```
+git clone https://github.com/MachineKillin/MSMC
+cd MSMC
+pip install -r requirements.txt
+python MSMC.py
+```
+
 ## Pictures:
 ![CUI](https://media.discordapp.net/attachments/894937291158605856/1106267319098941450/image.png?width=1057&height=612)
 
