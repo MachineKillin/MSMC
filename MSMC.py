@@ -274,7 +274,7 @@ def loadconfig():
     webhook_message = str(read_file['Settings']['WebhookMessage'])
 
 def Main():
-    global proxytype, screen, bad, checked, cpm,
+    global proxytype, screen, bad, checked, cpm
     loadconfig()
     utils.set_title("MSMC by KillinMachine")
     os.system('cls')
