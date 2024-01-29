@@ -3,6 +3,9 @@
 msmc is a minecraft account checker that checks through microsoft xbox login instead of the older mojang login.
 it supports http(s), socks4, socks5 proxies but they must be pretty decent because microsofts authentication is very protective.
 
+## Proxy Format
+`user:pass@ip:port` and `ip:port`
+
 ### [github discord](https://discord.com/invite/JcAvQc797r)
 
 ## Captures:
