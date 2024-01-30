@@ -315,7 +315,9 @@ def Main():
                          checked+=1
                          cpm+=1
                 except:
-                    finishedscreen()
+                    bad+=1
+                    checked+=1
+                    cpm+=1
             else:
                 finishedscreen()
 Main()
