@@ -16,7 +16,6 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 ## Installing
 MSMC ONLY SUPPORTS WINDOWS IT WILL NOT WORK ON LINUX OR MACOS
 Watch the tutorial [here](https://youtu.be/R4ivtEXpC_0)
-
 install [python](https://www.python.org/downloads/) and [git](https://git-scm.com/download/win)
 ```
 git clone https://github.com/MachineKillin/MSMC
