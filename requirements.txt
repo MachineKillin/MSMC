@@ -4,3 +4,4 @@ readchar==4.0.5
 Requests==2.31.0
 urllib3==2.1.0
 configparser==6.0.0
+stem==1.8.2
