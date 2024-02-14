@@ -43,8 +43,7 @@ class Capture:
                     .replace("<capes>", capes)
                     .replace("<access>", access)
                     .replace("<skyblockcoins>", sbcoins),
-                "username": "MSMC",
-                "avatar_url": "https://www.minecraft.net/etc.clientlibs/minecraft/clientlibs/main/resources/favicon.ico"
+                "username": "MSMC"
             }
             requests.post(webhook, data=json.dumps(payload), headers={"Content-Type": "application/json"})
         except: errors+=1
