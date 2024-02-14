@@ -27,7 +27,7 @@ python MSMC.py
 ```
 
 ## Pictures:
-![LOG](https://ibb.co/NCczB4s)
+![LOG](https://i.ibb.co/xLxQT4D/msmc-log.webp)
 
 ## Usage:
 You are not allowed to sell msmc or any modified versions. If you use any of my code please give me credit.
