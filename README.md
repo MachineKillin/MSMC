@@ -27,9 +27,7 @@ python MSMC.py
 ```
 
 ## Pictures:
-![CUI](https://media.discordapp.net/attachments/894937291158605856/1106267319098941450/image.png?width=1057&height=612)
-
-![LOG](https://media.discordapp.net/attachments/894937291158605856/1106266194505384026/image.png?width=1057&height=612)
+![LOG](https://ibb.co/NCczB4s)
 
 ## Usage:
 You are not allowed to sell msmc or any modified versions. If you use any of my code please give me credit.
