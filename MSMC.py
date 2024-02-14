@@ -259,10 +259,10 @@ def authenticate(email, password):
                 checked+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
     except Exception as e:
-        print(e)
-        traceback.print_exc()
-        line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
-        print("Exception occurred at line:", line_number)
+        #print(e)
+        #traceback.print_exc()
+        #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
+        #print("Exception occurred at line:", line_number)
         if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
         retries+=1
         authenticate(email, password)
