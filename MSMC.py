@@ -23,6 +23,8 @@ sFTTag_url = "https://login.live.com/oauth20_authorize.srf?client_id=000000004C1
 Combos = []
 proxylist = []
 fname = ""
+webhook_message = ""
+webhook = ""
 hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries = 0,0,0,0,0,0,0,0,0,0,0,0
 urllib3.disable_warnings()
 
