@@ -264,8 +264,9 @@ def authenticate(email, password):
             proxy = getproxy()
             session.proxies = proxy
         urlPost, sFTTag, session, port = get_urlPost_sFTTag(session, port)
-        token, session, port = get_xbox_rps(session, email, password, urlPost, sFTTag, port)
-        if token is not None:
+        outs = get_xbox_rps(session, email, password, urlPost, sFTTag, port)
+        if outs is not None:
+            token, session, port = outs
             hit = False
             try:
                 xbox_login = session.post('https://user.auth.xboxlive.com/user/authenticate', json={"Properties": {"AuthMethod": "RPS", "SiteName": "user.auth.xboxlive.com", "RpsTicket": token}, "RelyingParty": "http://auth.xboxlive.com", "TokenType": "JWT"}, headers={'Content-Type': 'application/json', 'Accept': 'application/json'}, timeout=15)
@@ -299,10 +300,10 @@ def authenticate(email, password):
             if hit == False: validmail(email, password)
         if proxytype == "'4'": stop_tor(port)
     except Exception as e:
-        #print(e)
-        #traceback.print_exc()
-        #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
-        #print("Exception occurred at line:", line_number)
+        print(e)
+        traceback.print_exc()
+        line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
+        print("Exception occurred at line:", line_number)
         if proxytype == "'4'": stop_tor(port)
         retries+=1
         authenticate(email, password)
