@@ -3,7 +3,7 @@
 msmc is a minecraft account checker that checks through microsoft xbox login instead of the older mojang login.
 it supports http(s), socks4, socks5 proxies but they must be pretty decent because microsofts authentication is very protective. it also uses tor proxies. it auto installs tor for you if selected.
 
-## Proxy Format
+## Proxy Format:
 `user:pass@ip:port` and `ip:port`
 
 ### [github discord](https://discord.com/invite/JcAvQc797r)
@@ -13,7 +13,7 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 - optifine cape
 - hypixel rank, level, first/last login, bedwars stars, skyblock coins
 
-## Installing
+## Installing:
 MSMC ONLY SUPPORTS WINDOWS IT WILL NOT WORK ON LINUX OR MACOS
 
 Watch the tutorial [here](https://youtu.be/R4ivtEXpC_0)
@@ -27,6 +27,9 @@ cd MSMC
 pip install -r requirements.txt
 python MSMC.py
 ```
+
+## Addons
+[Inboxer](https://github.com/PgerTools/MSMC-Inbox)
 
 ## Pictures:
 ![LOG](https://i.ibb.co/xLxQT4D/msmc-log.webp)
