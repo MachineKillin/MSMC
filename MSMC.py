@@ -317,6 +317,7 @@ def checkmc(session, email, password, token):
                 checked+=1
                 with open(f"results/{fname}/Bedrock.txt", 'a') as file: file.write(f"{email}:{password}\n")
                 if screen == "'2'": print(Fore.LIGHTYELLOW_EX+f"Minecraft Bedrock: {email}:{password}")
+                return True
             else:
                 CAPTURE = Capture(email, password, "N/A", "N/A", token)
                 CAPTURE.handle()
