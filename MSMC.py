@@ -176,6 +176,8 @@ class Capture:
         global hits, mfa, sfa, cpm, checked
         if screen == "'2'": print(Fore.GREEN+f"Hit: {self.name} | {self.email}:{self.password}")
         hits+=1
+        checked+=1
+        cpm+=1
         with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{self.email}:{self.password}\n")
         Capture.hypixel(self)
         Capture.optifine(self)
