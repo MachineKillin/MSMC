@@ -307,7 +307,7 @@ def validmail(email, password):
     if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Valid Mail: {email}:{password}")
 
 def checkmc(session, email, password, token):
-    global retries, bedrock, cpms, checked
+    global retries, bedrock, cpm, checked
     checkrq = session.get('https://api.minecraftservices.com/entitlements/mcstore', headers={'Authorization': f'Bearer {token}'}, verify=False)
     if checkrq.status_code == 200:
         if 'game_minecraft' in checkrq.text or 'product_minecraft' in checkrq.text:
