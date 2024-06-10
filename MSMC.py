@@ -409,6 +409,8 @@ def authenticate(email, password, tries = 0):
             checked+=1
             cpm+=1
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+    finally:
+        session.close()
 
 
 def Load():
