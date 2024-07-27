@@ -7,3 +7,4 @@ configparser==6.0.0
 stem==1.8.2
 requests[socks]
 git+https://github.com/ammaraskar/pyCraft.git
+PySocks==1.7.1
