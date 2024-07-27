@@ -35,7 +35,7 @@ python MSMC.py
 [Inboxer](https://github.com/PgerTools/MSMC-Inbox)
 
 ## Pictures:
-![LOG](https://i.imgur.com/vq98m24.png)
+![LOG](https://i.imgur.com/oBd2Pbj.png)
 
 ## Usage:
 You are not allowed to sell msmc or any modified versions. If you use any of my code please give me credit.
