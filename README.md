@@ -11,7 +11,9 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 ## Captures:
 - minecraft capes
 - optifine cape
-- hypixel rank, level, first/last login, bedwars stars, skyblock coins
+- email access
+- last name change
+- hypixel rank, level, first/last login, bedwars stars, skyblock coins, ban status
 
 ## Installing:
 MSMC ONLY SUPPORTS WINDOWS IT WILL NOT WORK ON LINUX OR MACOS
