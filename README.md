@@ -6,7 +6,7 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 ## Proxy Format:
 `user:pass@ip:port` and `ip:port`
 
-### [github discord](https://discord.com/invite/JcAvQc797r)
+### [github discord](https://discord.com/invite/JcAvQc797r) | boosting gives access to beta msmc
 
 ## Captures:
 - minecraft capes
