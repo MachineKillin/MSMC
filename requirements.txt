@@ -6,3 +6,4 @@ urllib3==2.2.2
 configparser==6.0.0
 stem==1.8.2
 requests[socks]
+git+https://github.com/ammaraskar/pyCraft.git
