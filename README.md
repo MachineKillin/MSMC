@@ -9,6 +9,7 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 ### [github discord](https://discord.com/invite/JcAvQc797r) | boosting gives access to beta msmc
 
 ## Captures:
+- xbox game pass/xbox game pass ultimate accounts
 - minecraft capes
 - optifine cape
 - email access
