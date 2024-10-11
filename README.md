@@ -18,6 +18,7 @@ it supports http(s), socks4, socks5 proxies but they must be pretty decent becau
 
 ## Installing:
 MSMC ONLY SUPPORTS WINDOWS IT WILL NOT WORK ON LINUX OR MACOS
+### [LINUX VERSION](https://github.com/8h3-coder/MSMC_Linux) (thanks to 8h3)
 
 Watch the tutorial [here](https://youtu.be/R4ivtEXpC_0)
 
