@@ -206,7 +206,7 @@ class Capture:
             auth_token.profile = Profile(id_=self.uuid, name=self.name)
             tries = 0
             while tries < maxretries:
-                connection = Connection("alpha.hypixel.net", 25565, auth_token=auth_token, initial_version=47)
+                connection = Connection("alpha.hypixel.net", 25565, auth_token=auth_token, initial_version=47, allowed_versions={"1.8", 47})
                 @connection.listener(clientbound.login.DisconnectPacket, early=True)
                 def login_disconnect(packet):
                     data = json.loads(str(packet.json_data))
