@@ -285,12 +285,11 @@ def get_urlPost_sFTTag(session):
     global retries
     while True: #will retry forever until it gets a working request/url.
         try:
-            r = session.get(sFTTag_url, timeout=15)
-            text = r.text
-            match = re.match(r'.*value="(.+?)".*', text, re.S)
+            text = session.get(sFTTag_url, timeout=15).text
+            match = re.match(r'.*value=\\\"(.+?)\\\".*', text, re.S)
             if match is not None:
                 sFTTag = match.group(1)
-                match = re.match(r".*urlPost:'(.+?)'.*", text, re.S)
+                match = re.match(r".*\"urlPost\":\"(.+?)\".*", text, re.S)
                 if match is not None:
                     return match.group(1), sFTTag, session
         except: pass
@@ -784,3 +783,4 @@ def Main():
     finishedscreen()
     input()
 Main()
+
