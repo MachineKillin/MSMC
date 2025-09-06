@@ -283,18 +283,19 @@ class Login:
         
 def get_urlPost_sFTTag(session):
     global retries
-    while True: #will retry forever until it gets a working request/url.
+    while True:
         try:
             text = session.get(sFTTag_url, timeout=15).text
-            match = re.match(r'.*value=\\\"(.+?)\\\".*', text, re.S)
-            if match is not None:
+            match = re.search(r'value=\\\"(.+?)\\\"', text, re.S) or re.search(r'value="(.+?)"', text, re.S)
+            if match:
                 sFTTag = match.group(1)
-                match = re.match(r".*\"urlPost\":\"(.+?)\".*", text, re.S)
-                if match is not None:
+                match = re.search(r'"urlPost":"(.+?)"', text, re.S) or re.search(r"urlPost:'(.+?)'", text, re.S)
+                if match:
                     return match.group(1), sFTTag, session
-        except: pass
+        except Exception:
+            pass
         session.proxy = getproxy()
-        retries+=1
+        retries += 1
 
 def get_xbox_rps(session, email, password, urlPost, sFTTag):
     global bad, checked, cpm, twofa, retries, checked
@@ -783,4 +784,5 @@ def Main():
     finishedscreen()
     input()
 Main()
+
 
